@@ -589,18 +589,19 @@
       <rect x="0.5" y="6" width="3.5" height="3.5" rx="0.8" fill="white" opacity=".6"/>
       <rect x="6" y="6" width="3.5" height="3.5" rx="0.8" fill="white" opacity=".3"/>
     </svg>
-    Whitelabel UX Team · Cencosud · v1.1
+    Whitelabel UX Team · Cencosud · v2.0
   </div>
   <h1>Prisma MCP <span>Server</span></h1>
   <p class="hero-sub">
     Conecta Claude directamente con Prisma-Components y Figma.<br>
-    Convertí prompts o DS3 JSON en pantallas reales sin salir de Cowork.
+    Genera frames reales en Figma desde DS3 JSON — sin plugins intermedios.
   </p>
   <div class="hero-tags">
     <span class="hero-tag">🧠 Claude + MCP</span>
     <span class="hero-tag">🎨 Prisma Design System</span>
     <span class="hero-tag">⚡ DS3 Agéntico</span>
-    <span class="hero-tag">📐 Figma REST API</span>
+    <span class="hero-tag">📐 use_figma Direct</span>
+    <span class="hero-tag">🎨 Brand Mode Auto</span>
   </div>
 </div>
 
@@ -619,20 +620,20 @@
     <div class="arch-box">
       <div class="arch-node primary">Claude (Cowork)<sub>Acá trabajás vos</sub></div>
       <div class="arch-arrow">↓</div>
-      <div class="arch-node secondary">Prisma MCP Server<sub>Catálogo · Resolver · DS3 Builder</sub></div>
+      <div class="arch-node secondary">Prisma MCP Server<sub>Catálogo · Resolver · DS3 Builder · Script Generator</sub></div>
       <div class="arch-arrow">↓</div>
       <div class="arch-split">
         <div class="arch-split-col">
           <div class="arch-node">Figma REST API<sub>Lee la librería Prisma</sub></div>
         </div>
         <div class="arch-split-col">
-          <div class="arch-node">Prisma Builder Plugin<sub>Crea frames en Figma</sub></div>
+          <div class="arch-node" style="border-color:var(--brand-border);background:var(--brand-light);">use_figma (Figma MCP)<sub>Crea frames directo en Figma</sub></div>
         </div>
       </div>
     </div>
 
     <div style="margin-top:20px;" class="info-box">
-      <strong>En la práctica:</strong> le decís a Claude "convertí este DS3 en pantallas" o "¿qué componente Prisma uso para un soft gate de membresía?" y el MCP lo resuelve directo — sin que toques archivos, sin copiar y pegar, sin buscar en la documentación.
+      <strong>En la práctica:</strong> le decís a Claude "convertí este DS3 en pantallas" y el MCP resuelve los componentes, genera el script y lo ejecuta directo en Figma vía <code>use_figma</code> — sin plugins intermedios, sin copiar y pegar JSON, con brand mode aplicado automáticamente.
     </div>
   </section>
 
@@ -844,9 +845,9 @@ source ~/.zshrc</pre>
 
     <div id="tab-ds3" class="tab-panel active">
       <div class="card">
-        <div class="card-title">Flujo completo: DS3 JSON → Figma</div>
+        <div class="card-title">Flujo completo: DS3 JSON → Figma (directo)</div>
         <div class="card-body" style="margin-bottom:16px;">
-          Este flujo parte del JSON que genera DS3 (<code>packets.ds3</code>) en <code>design_state.json</code>.
+          Parte del JSON que genera DS3 (<code>packets.ds3</code>). El MCP genera un script y lo ejecuta directo en Figma via <code>use_figma</code> — sin plugins intermedios.
         </div>
 
         <div class="flow">
@@ -866,8 +867,8 @@ source ~/.zshrc</pre>
               <div class="flow-line"><div class="flow-connector" style="height:28px"></div></div>
             </div>
             <div class="flow-content">
-              <div class="flow-title">② Validar el JSON con el MCP</div>
-              <div class="flow-sub">Chequeá antes de crear para detectar errores de componentes</div>
+              <div class="flow-title">② Validar el JSON con el MCP (opcional pero recomendado)</div>
+              <div class="flow-sub">Detecta errores de componentes antes de crear</div>
               <div class="code-block" style="margin-top:8px;">
                 <pre style="font-size:11.5px;">Usá el Prisma MCP para validar este DS3 JSON:
 [pegá el contenido de packets.ds3]</pre>
@@ -880,13 +881,11 @@ source ~/.zshrc</pre>
               <div class="flow-line"><div class="flow-connector" style="height:28px"></div></div>
             </div>
             <div class="flow-content">
-              <div class="flow-title">③ Generar las pantallas</div>
-              <div class="flow-sub">El MCP resuelve componentes, detecta los que no existen y genera el JSON enriquecido</div>
+              <div class="flow-title">③ Crear las pantallas</div>
+              <div class="flow-sub">El MCP resuelve componentes y genera el script Figma</div>
               <div class="code-block" style="margin-top:8px;">
                 <pre style="font-size:11.5px;">Usá el Prisma MCP para crear las pantallas desde este DS3 JSON:
-[pegá el contenido de packets.ds3]
-
-Archivo de Figma: https://www.figma.com/file/XXXX/Mi-Archivo</pre>
+[pegá el contenido de packets.ds3]</pre>
               </div>
             </div>
           </div>
@@ -896,15 +895,20 @@ Archivo de Figma: https://www.figma.com/file/XXXX/Mi-Archivo</pre>
               <div class="flow-line"><div class="flow-connector" style="height:28px"></div></div>
             </div>
             <div class="flow-content">
-              <div class="flow-title">④ Ejecutar en Figma</div>
-              <div class="flow-sub">Copiá el JSON que devuelve el MCP → abrí Prisma Builder en Figma → pegá → Build Screens</div>
+              <div class="flow-title">④ Obtener el fileKey del archivo Figma</div>
+              <div class="flow-sub">Copiá la URL de tu archivo Figma. El fileKey es el segmento después de <code>/file/</code> o <code>/design/</code></div>
+              <div class="code-block" style="margin-top:8px;">
+                <pre style="font-size:11.5px;">https://www.figma.com/design/<span style="color:#FCD34D">c1CRpB06jcpylPtASbdv3p</span>/Nombre-del-archivo
+                                            ↑ este es el fileKey</pre>
+              </div>
             </div>
           </div>
           <div class="flow-step">
             <div><div class="flow-dot" style="background:var(--success)"></div></div>
             <div class="flow-content">
-              <div class="flow-title" style="color:var(--success)">⑤ Componentes nuevos → Figma Make</div>
-              <div class="flow-sub">Para los componentes que no existen en Prisma, el MCP genera un prompt listo para pegar en Figma Make</div>
+              <div class="flow-title" style="color:var(--success)">⑤ Ejecutar el script con use_figma</div>
+              <div class="flow-sub">Claude ejecuta el script directamente en Figma. Los frames aparecen en una nueva página nombrada <code>[proyecto] · [marca]</code> con el brand mode de la marca aplicado automáticamente.</div>
+              <div class="success-box" style="margin-top:8px;font-size:12.5px;">✅ Sin Prisma Builder. Sin Figma Make. Sin copiar y pegar JSON.</div>
             </div>
           </div>
         </div>
@@ -931,7 +935,7 @@ Marca: The Fresh Market
 Plataforma: iOS</pre>
         </div>
         <div class="info-box" style="margin-top:12px;">
-          El MCP infiere los componentes Prisma correctos para cada elemento mencionado en el prompt y genera el JSON listo para Prisma Builder.
+          El MCP infiere los componentes Prisma correctos para cada elemento mencionado en el prompt, genera el script y lo ejecuta directo en Figma via <code>use_figma</code>.
         </div>
       </div>
     </div>
@@ -1034,7 +1038,7 @@ Plataforma: iOS</pre>
           <tr>
             <td><strong>Construcción de frames</strong><br><span style="font-size:12px;color:#64748B">Crear cada pantalla componente a componente</span></td>
             <td>60–120 min</td>
-            <td>~2 min (Prisma Builder)</td>
+            <td>~30 seg (use_figma directo)</td>
             <td><span style="color:var(--success);font-weight:700">Muy alta ↑</span></td>
           </tr>
           <tr>
@@ -1054,8 +1058,8 @@ Plataforma: iOS</pre>
       <div style="margin-top:16px;" class="info-box">
         <strong>Cómo medir en tu próximo proyecto:</strong> anotá el tiempo desde "tengo el PDR" hasta "frames listos para review". Comparalo con proyectos anteriores para tener tu propio baseline real.
       </div>
-      <div style="margin-top:8px;" class="warn-box">
-        <strong>Límite actual del proceso:</strong> el MCP no escribe directo al canvas de Figma — la REST API de Figma es read-only para el canvas. Prisma Builder y Figma Make siguen siendo ejecución manual del designer. Ese es el único salto que permanece fuera del flujo agéntico.
+      <div style="margin-top:8px;" class="success-box">
+        <strong>v2.0 — flujo totalmente agéntico:</strong> el MCP escribe directo al canvas de Figma via <code>use_figma</code>. Ya no hay pasos manuales intermedios — Claude ejecuta el script, crea la página, aplica el brand mode y entrega los frames listos.
       </div>
     </div>
   </section>
@@ -1077,11 +1081,11 @@ Plataforma: iOS</pre>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
         <div style="background:var(--brand-light);border:1px solid var(--brand-border);border-radius:8px;padding:16px;">
           <div style="font-weight:700;color:var(--brand-dark);margin-bottom:8px;font-size:13px;">① Composición DS3</div>
-          <div style="font-size:12.5px;color:var(--neutral-600);line-height:1.6;">Sub-árbol de componentes Prisma existentes que aproximan el componente nuevo. Va dentro del JSON de Prisma Builder.</div>
+          <div style="font-size:12.5px;color:var(--neutral-600);line-height:1.6;">Sub-árbol de componentes Prisma existentes que aproximan el componente nuevo. Se incluye en el script de <code>use_figma</code> como frame anidado.</div>
         </div>
         <div style="background:var(--success-light);border:1px solid var(--success-border);border-radius:8px;padding:16px;">
-          <div style="font-weight:700;color:#14532D;margin-bottom:8px;font-size:13px;">② Prompt Figma Make</div>
-          <div style="font-size:12.5px;color:var(--neutral-600);line-height:1.6;">Instrucción lista para pegar en Figma Make con estructura, props y nombre exacto del componente a crear.</div>
+          <div style="font-weight:700;color:#14532D;margin-bottom:8px;font-size:13px;">② Auto-creado en Figma</div>
+          <div style="font-size:12.5px;color:var(--neutral-600);line-height:1.6;">El script generado incluye las composiciones y las crea directamente en el canvas. No hace falta Figma Make ni intervención manual.</div>
         </div>
       </div>
       <div style="margin-top:16px;">
@@ -1118,7 +1122,7 @@ Plataforma: iOS</pre>
         </table>
       </div>
       <div style="margin-top:12px;" class="info-box">
-        <strong>Workflow recomendado:</strong> primero ejecutá Prisma Builder con el JSON completo → después creá los componentes nuevos en Figma Make → guardalos como componentes locales → swappealos en los frames donde aparecen las composiciones.
+        <strong>Workflow recomendado:</strong> ejecutá <code>use_figma</code> con el script completo → los frames aparecen en la nueva página con brand mode aplicado → si hay composiciones, revisá el frame y ajustá a mano si hace falta.
       </div>
     </div>
   </section>
@@ -1129,7 +1133,7 @@ Plataforma: iOS</pre>
       <div style="width:30px;height:30px;background:var(--neutral-100);border:1px solid var(--neutral-200);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;">🛠</div>
       <div>
         <h2>Herramientas disponibles</h2>
-        <div class="section-desc">8 tools que podés usar desde Claude</div>
+        <div class="section-desc">9 tools que podés usar desde Claude</div>
       </div>
     </div>
 
@@ -1173,6 +1177,11 @@ Plataforma: iOS</pre>
         <div class="tool-name">get_figma_file_info</div>
         <div class="tool-desc">Obtiene info de un archivo Figma: nombre, páginas disponibles, componentes locales, fecha de modificación.</div>
         <div class="tool-when">Usar: para verificar que el archivo destino es el correcto</div>
+      </div>
+      <div class="tool-card" style="border-color:var(--brand-border);background:var(--brand-light);">
+        <div class="tool-name" style="background:white;">generate_figma_script</div>
+        <div class="tool-desc">Genera el script JavaScript completo (use_figma) desde un DS3 JSON. Crea la página, coloca los frames con los componentes Prisma resueltos y aplica el brand mode automáticamente.</div>
+        <div class="tool-when">⭐ Nuevo en v2.0 — es el paso final del flujo DS3 → Figma directo</div>
       </div>
     </div>
   </section>
@@ -1239,6 +1248,28 @@ Plataforma: iOS</pre>
       <div class="accordion-body">
         El DS3 JSON tiene componentes con prefijos de diseño atómico (<code>Atoms &gt;</code>, <code>Molecules &gt;</code>, <code>Organisms &gt;</code>) que no existen en Figma.<br><br>
         <strong>Solución:</strong> Pedile a Claude que corrija el JSON usando <code>resolve_component</code> para cada componente problemático. El MCP sugiere el nombre correcto en Prisma.
+      </div>
+    </div>
+
+    <div class="accordion-item">
+      <button class="accordion-btn" onclick="toggleAccordion(this)">
+        Los frames aparecen en "Page 1" en vez de la página del proyecto
+        <span class="accordion-icon">⌄</span>
+      </button>
+      <div class="accordion-body">
+        Esto ocurría en versiones anteriores del script generado, donde <code>figma.currentPage = page</code> no funcionaba (la asignación directa no está soportada por la Figma Plugin API).<br><br>
+        <strong>En v2.0 está corregido:</strong> el script usa <code>await figma.setCurrentPageAsync(page)</code> antes de crear los frames. Si ves este problema, asegurate de que el MCP está en v2.0 o superior (reiniciá desde Settings → Developer → MCP → prisma-mcp → Restart).
+      </div>
+    </div>
+
+    <div class="accordion-item">
+      <button class="accordion-btn" onclick="toggleAccordion(this)">
+        Brand mode no se aplica a los frames generados
+        <span class="accordion-icon">⌄</span>
+      </button>
+      <div class="accordion-body">
+        Puede pasar si el DS3 JSON no tiene el campo <code>marca</code> o si el nombre no coincide exactamente con el nombre del modo en Figma.<br><br>
+        <strong>Verificar:</strong> en el DS3 JSON, el campo <code>marca</code> debe ser exactamente igual al nombre del mode en la colección "2-Style Tokens" de Figma (ej: <code>"The Fresh Market"</code>, no <code>"TFM"</code>). Si no coincide, el script aplica sin brand mode pero sin romper la creación de frames.
       </div>
     </div>
   </section>
