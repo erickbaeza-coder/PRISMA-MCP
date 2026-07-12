@@ -14,10 +14,16 @@ import {
   ListToolsRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
 
+import { readFileSync } from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 import { FigmaAPI } from './figma-api.js';
 import { PrismaCatalog } from './prisma-catalog.js';
 import { ComponentResolver } from './component-resolver.js';
 import { DS3Builder } from './ds3-builder.js';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const TOKENS = JSON.parse(readFileSync(join(__dirname, 'prisma-tokens.json'), 'utf8'));
 
 // ── Init ──────────────────────────────────────────────────────
 const figmaToken = process.env.FIGMA_TOKEN;
@@ -59,11 +65,12 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
       name: 'create_screens_from_ds3',
       description:
         'Toma el JSON completo de packets.ds3 generado por el paso DS3 del proceso agéntico y produce:\n' +
-        '1. JSON enriquecido listo para Prisma Builder (plugin Figma)\n' +
-        '2. Specs para componentes locales nuevos (los que no existen en Prisma)\n' +
-        '3. Prompts de Figma Make para componentes nuevos\n' +
+        '1. Script use_figma listo para ejecutar — crea las pantallas DIRECTAMENTE en Figma usando importComponentByKeyAsync, auto-layout y spacing tokens\n' +
+        '2. JSON enriquecido como fallback para Prisma Builder (plugin Figma)\n' +
+        '3. Specs para componentes locales nuevos (los que no existen en Prisma)\n' +
         '4. Resumen de cobertura y warnings\n\n' +
-        'Usar cuando tenés el DS3 JSON completo y querés generar todo en Figma.',
+        'FLUJO PRINCIPAL: DS3 JSON → MCP genera script → Claude ejecuta use_figma → pantallas en Figma.\n' +
+        'Usar cuando tenés el DS3 JSON completo y querés crear las pantallas directamente en Figma.',
       inputSchema: {
         type: 'object',
         properties: {
@@ -275,6 +282,176 @@ async function handleSyncLibrary({ file_url }) {
   };
 }
 
+// ── Figma Script Generator ────────────────────────────────────
+// Genera el código JavaScript que Claude ejecuta via use_figma
+// para crear pantallas directamente en Figma.
+function generateFigmaScript(ds3Data) {
+  const S = TOKENS.screen;          // paddingHorizontal, paddingBottom, itemSpacing, width, height
+  const FRAME_W = S.width;          // 390
+  const FRAME_H = S.height;         // 844
+  const GAP = 60;                   // espacio entre frames en el canvas
+
+  const pantallas = ds3Data.pantallas || [];
+  const varNames  = pantallas.map((_, i) => `s${String(i + 1).padStart(2, '0')}`);
+
+  const L = [];  // lines
+
+  const pageName = `${ds3Data.proyecto || 'DS3'} · ${ds3Data.marca || 'Brand'}`;
+
+  L.push(`// ═══════════════════════════════════════════════════════════════`);
+  L.push(`// Auto-generado por Prisma MCP — create_screens_from_ds3`);
+  L.push(`// Proyecto : ${ds3Data.proyecto || '—'}`);
+  L.push(`// Marca    : ${ds3Data.marca    || '—'}`);
+  L.push(`// Generado : ${new Date().toISOString().split('T')[0]}`);
+  L.push(`// ═══════════════════════════════════════════════════════════════`);
+  L.push(``);
+  L.push(`// ── Crear / encontrar página destino ─────────────────────────`);
+  L.push(`const PAGE_NAME = ${JSON.stringify(pageName)};`);
+  L.push(`let targetPage = figma.root.children.find(p => p.name === PAGE_NAME);`);
+  L.push(`if (!targetPage) { targetPage = figma.createPage(); targetPage.name = PAGE_NAME; }`);
+  L.push(`await figma.setCurrentPageAsync(targetPage);`);
+  L.push(``);
+  L.push(`const T = { padH: ${S.paddingHorizontal}, gap: ${S.itemSpacing}, padB: ${S.paddingBottom} };`);
+  L.push(`const W = ${FRAME_W}, H = ${FRAME_H}, GAP = ${GAP};`);
+  L.push(``);
+  L.push(`// ── Helpers ──────────────────────────────────────────────────`);
+  L.push(`async function li(key) {`);
+  L.push(`  const c = await figma.importComponentByKeyAsync(key);`);
+  L.push(`  return c.createInstance();`);
+  L.push(`}`);
+  L.push(``);
+  L.push(`function makeFrame(name, x) {`);
+  L.push(`  const f = figma.createFrame();`);
+  L.push(`  f.name = name; f.resize(W, H); f.x = x; f.y = 0;`);
+  L.push(`  f.fills = [{ type: 'SOLID', color: { r: 1, g: 1, b: 1 } }];`);
+  L.push(`  f.layoutMode = 'VERTICAL';`);
+  L.push(`  f.primaryAxisSizingMode = 'FIXED'; f.counterAxisSizingMode = 'FIXED';`);
+  L.push(`  f.itemSpacing = T.gap;`);
+  L.push(`  f.paddingTop = 0; f.paddingBottom = T.padB;`);
+  L.push(`  f.paddingLeft = 0; f.paddingRight = 0;`);
+  L.push(`  f.clipsContent = true;`);
+  L.push(`  figma.currentPage.appendChild(f);`);
+  L.push(`  return f;`);
+  L.push(`}`);
+  L.push(``);
+  L.push(`// Wrapper con padding horizontal para componentes 'padded'`);
+  L.push(`function wrapPad(frame) {`);
+  L.push(`  const w = figma.createFrame();`);
+  L.push(`  w.layoutMode = 'VERTICAL';`);
+  L.push(`  w.primaryAxisSizingMode = 'AUTO';`);
+  L.push(`  w.counterAxisSizingMode = 'FIXED';`);
+  L.push(`  w.paddingLeft = T.padH; w.paddingRight = T.padH;`);
+  L.push(`  w.paddingTop = 0; w.paddingBottom = 0;`);
+  L.push(`  w.itemSpacing = 0; w.fills = [];`);
+  L.push(`  frame.appendChild(w);`);
+  L.push(`  w.layoutSizingHorizontal = 'FILL';`);
+  L.push(`  return w;`);
+  L.push(`}`);
+  L.push(``);
+  L.push(`// Agrega un componente al frame según su layoutType`);
+  L.push(`async function addComp(frame, key, type) {`);
+  L.push(`  const inst = await li(key);`);
+  L.push(`  if (type === 'padded') {`);
+  L.push(`    const wrap = wrapPad(frame);`);
+  L.push(`    wrap.appendChild(inst);`);
+  L.push(`    inst.layoutSizingHorizontal = 'FILL';`);
+  L.push(`  } else if (type === 'center') {`);
+  L.push(`    frame.appendChild(inst);`);
+  L.push(`    inst.layoutAlign = 'CENTER';`);
+  L.push(`  } else if (type === 'inline') {`);
+  L.push(`    const wrap = wrapPad(frame);`);
+  L.push(`    wrap.counterAxisSizingMode = 'AUTO';`);
+  L.push(`    wrap.appendChild(inst);`);
+  L.push(`  } else {`);
+  L.push(`    frame.appendChild(inst);`);
+  L.push(`    inst.layoutSizingHorizontal = 'FILL';`);
+  L.push(`  }`);
+  L.push(`  return inst;`);
+  L.push(`}`);
+  L.push(``);
+  L.push(`// Aplica contenido de texto a una instancia (Opción B: setProperties o text node)`);
+  L.push(`async function setText(inst, text, cfg) {`);
+  L.push(`  if (!text || !cfg) return;`);
+  L.push(`  try {`);
+  L.push(`    if (cfg.type === 'prop') {`);
+  L.push(`      inst.setProperties({ [cfg.key]: text });`);
+  L.push(`    } else if (cfg.type === 'node') {`);
+  L.push(`      const nodes = inst.findAll(n => n.type === 'TEXT' && n.name === cfg.name);`);
+  L.push(`      const target = nodes[cfg.index ?? 0];`);
+  L.push(`      if (target) { await figma.loadFontAsync(target.fontName); target.characters = text; }`);
+  L.push(`    }`);
+  L.push(`  } catch(e) { console.warn('setText error:', inst.name, e.message); }`);
+  L.push(`}`);
+  L.push(``);
+  L.push(`// ── Pantallas ────────────────────────────────────────────────`);
+
+  let missingKeys = [];
+
+  for (let i = 0; i < pantallas.length; i++) {
+    const screen   = pantallas[i];
+    const varName  = varNames[i];
+    const offsetX  = i * (FRAME_W + GAP);
+    const screenId = screen.id     || `screen_${String(i + 1).padStart(2, '0')}`;
+    const nombre   = screen.nombre || screenId;
+
+    L.push(``);
+    L.push(`// ── ${screenId} · ${nombre} ${'─'.repeat(Math.max(0, 46 - screenId.length - nombre.length))}`);
+    L.push(`const ${varName} = makeFrame('${screenId} · ${nombre}', ${offsetX});`);
+
+    const componentes = screen.componentes || [];
+    for (const comp of componentes) {
+      const rol = comp.nombre_intencional || comp.rol || comp.nombre || '';
+
+      // Composiciones manuales → skip con TODO
+      if (comp.tipo === 'composicion') {
+        L.push(`// TODO [composición]: ${rol} — crear manualmente con sub-componentes`);
+        continue;
+      }
+
+      const compName = comp.componente;
+      if (!compName) {
+        L.push(`// TODO [sin nombre]: ${JSON.stringify(comp).substring(0, 80)}`);
+        continue;
+      }
+
+      const entry = catalog.get(compName);
+      if (!entry || !entry.figmaKey) {
+        missingKeys.push(`${screenId}: "${compName}"`);
+        L.push(`// ⚠️ Sin figmaKey en catálogo: "${compName}" — agregar manualmente`);
+        continue;
+      }
+
+      const contenido = comp.contenido || '';
+      const hasText = contenido && entry.textConfig;
+
+      if (hasText) {
+        L.push(`{ const _i = await addComp(${varName}, '${entry.figmaKey}', '${entry.layoutType}'); await setText(_i, ${JSON.stringify(contenido)}, ${JSON.stringify(entry.textConfig)}); } // ${rol}`);
+      } else {
+        L.push(`await addComp(${varName}, '${entry.figmaKey}', '${entry.layoutType}'); // ${rol}`);
+      }
+    }
+  }
+
+  // ── Brand mode ────────────────────────────────────────────────
+  const BRAND_MODE_VAR_KEY = '547b5471cbd40f24ea2fc90355ef9e9c7f952645'; // variable de 2-Style Tokens
+  const marca = ds3Data.marca || '';
+  L.push(``);
+  L.push(`// ── Brand mode: ${marca} ─────────────────────────────────────`);
+  L.push(`try {`);
+  L.push(`  const _bv = await figma.variables.importVariableByKeyAsync('${BRAND_MODE_VAR_KEY}');`);
+  L.push(`  const _bc = figma.variables.getVariableCollectionById(_bv.variableCollectionId);`);
+  L.push(`  const _bm = _bc.modes.find(m => m.name === ${JSON.stringify(marca)});`);
+  L.push(`  if (_bm) { for (const _f of [${varNames.join(', ')}]) { _f.setExplicitVariableModeForCollection(_bc, _bm.modeId); } }`);
+  L.push(`} catch(e) { console.warn('Brand mode error:', e.message); }`);
+
+  L.push(``);
+  L.push(`// ── Finalizar ────────────────────────────────────────────────`);
+  L.push(`figma.viewport.scrollAndZoomIntoView([${varNames.join(', ')}]);`);
+  L.push(`return { created: [${varNames.map(v => `${v}.name`).join(', ')}] };`);
+
+  return { script: L.join('\n'), missingKeys };
+}
+
 async function handleCreateScreensFromDS3({ ds3_json, figma_file_url }) {
   let ds3Data;
   try {
@@ -284,6 +461,7 @@ async function handleCreateScreensFromDS3({ ds3_json, figma_file_url }) {
   }
 
   const result = builder.buildFromDS3(ds3Data);
+  const { script: figmaScript, missingKeys } = generateFigmaScript(ds3Data);
   const lines = [];
 
   lines.push(`# 🎨 DS3 → Figma — Procesamiento completado`);
@@ -291,6 +469,27 @@ async function handleCreateScreensFromDS3({ ds3_json, figma_file_url }) {
   lines.push(`**Proyecto:** ${ds3Data.proyecto || '—'}`);
   lines.push(`**Marca:** ${ds3Data.marca || '—'} · **Dirección:** ${ds3Data.direccion || '—'}`);
   lines.push(`**Pantallas:** ${result.screens.length} · **Componentes:** ${result.totalComponents} (${result.resolved} resueltos, ${result.placeholders} placeholders)`);
+  lines.push(``);
+
+  // ── Script use_figma — FLUJO PRINCIPAL ────────────────────────
+  lines.push(`## 🚀 Script use_figma — Creación directa en Figma`);
+  lines.push(``);
+  if (figma_file_url) {
+    lines.push(`**Archivo destino:** ${figma_file_url}`);
+    lines.push(``);
+  }
+  lines.push(`Ejecutar via \`use_figma\` para crear las ${result.screens.length} pantalla(s) directamente:`);
+  lines.push(``);
+  lines.push(`\`\`\`javascript`);
+  lines.push(figmaScript);
+  lines.push(`\`\`\``);
+  lines.push(``);
+  if (missingKeys.length > 0) {
+    lines.push(`> ⚠️ **${missingKeys.length} componente(s) sin figmaKey** — quedan como comentarios TODO en el script:`);
+    missingKeys.forEach(k => lines.push(`> • ${k}`));
+    lines.push(``);
+  }
+  lines.push(`---`);
   lines.push(``);
 
   // Coverage table
@@ -333,10 +532,10 @@ async function handleCreateScreensFromDS3({ ds3_json, figma_file_url }) {
     lines.push(``);
   }
 
-  // Enhanced JSON
-  lines.push(`## JSON listo para Prisma Builder`);
+  // Enhanced JSON (fallback para Prisma Builder)
+  lines.push(`## Fallback — JSON para Prisma Builder`);
   lines.push(``);
-  lines.push(`Pegá este JSON en el plugin Prisma Builder en Figma${figma_file_url ? ` → ${figma_file_url}` : ''}:`);
+  lines.push(`Si preferís usar el plugin, pegá este JSON en Prisma Builder${figma_file_url ? ` → ${figma_file_url}` : ''}:`);
   lines.push(``);
   lines.push(`\`\`\`json`);
   lines.push(JSON.stringify(result.enhancedJson, null, 2));
