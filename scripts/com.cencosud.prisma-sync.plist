@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+
+  <key>Label</key>
+  <string>com.cencosud.prisma-sync</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/usr/local/bin/node</string>
+    <string>/Users/ebaezaroa/Desktop/Cencosud 2026/Discovery Agentico/Prisma MCP/scripts/sync-and-push.js</string>
+  </array>
+
+  <!-- Corre todos los lunes a las 09:00 -->
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Weekday</key>
+    <integer>1</integer>
+    <key>Hour</key>
+    <integer>9</integer>
+    <key>Minute</key>
+    <integer>0</integer>
+  </dict>
+
+  <!-- Variables de entorno -->
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>FIGMA_TOKEN</key>
+    <string>TU_FIGMA_TOKEN_AQUI</string>
+
+    <key>FIGMA_COMPONENTS_FILEKEY</key>
+    <string>LnYUTRFuwWpI9phwDCSHOx</string>
+
+    <key>NOTIFY_EMAIL</key>
+    <string>erick.baeza@cencosud.cl</string>
+
+    <!-- Configurar con tu SMTP. Opciones: -->
+    <!-- Gmail: smtp.gmail.com:587 con App Password (sin 2FA en cuenta normal) -->
+    <!-- Cencosud: consultar con IT el servidor SMTP corporativo -->
+    <key>SMTP_HOST</key>
+    <string>smtp.gmail.com</string>
+
+    <key>SMTP_PORT</key>
+    <string>587</string>
+
+    <key>SMTP_USER</key>
+    <string>TU_EMAIL_REMITENTE@gmail.com</string>
+
+    <key>SMTP_PASS</key>
+    <string>TU_APP_PASSWORD_AQUI</string>
+
+    <key>SMTP_FROM</key>
+    <string>TU_EMAIL_REMITENTE@gmail.com</string>
+
+    <!-- PATH necesario para que git funcione en el cron -->
+    <key>PATH</key>
+    <string>/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin</string>
+
+    <key>HOME</key>
+    <string>/Users/ebaezaroa</string>
+  </dict>
+
+  <!-- Logs -->
+  <key>StandardOutPath</key>
+  <string>/Users/ebaezaroa/Library/Logs/prisma-sync.log</string>
+
+  <key>StandardErrorPath</key>
+  <string>/Users/ebaezaroa/Library/Logs/prisma-sync-error.log</string>
+
+  <key>RunAtLoad</key>
+  <false/>
+
+</dict>
+</plist>

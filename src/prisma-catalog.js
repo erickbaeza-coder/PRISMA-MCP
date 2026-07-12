@@ -11,6 +11,12 @@
 //   'inline'      : elemento inline, no ocupa fila completa (tags, chips)
 // ============================================================
 
+import { readFileSync } from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
 const BASE_CATALOG = [
   // ── Nav Bar ─────────────────────────────────────────────────
   {
@@ -473,6 +479,20 @@ export class PrismaCatalog {
       if (comp.figmaKey) {
         this._keyMap[normStr(comp.name)] = comp.figmaKey;
       }
+    }
+    // Cargar keys actualizados por el auto-sync (prisma-keys.json)
+    try {
+      const keysPath = join(__dirname, 'prisma-keys.json');
+      const overrides = JSON.parse(readFileSync(keysPath, 'utf8'));
+      // Merge: los keys del sync sobreescriben el catálogo base
+      Object.assign(this._keyMap, overrides);
+      // También actualizar el array _catalog con los keys frescos
+      for (const comp of this._catalog) {
+        const fresh = overrides[normStr(comp.name)];
+        if (fresh) comp.figmaKey = fresh;
+      }
+    } catch {
+      // prisma-keys.json aún no existe — usar catálogo base
     }
   }
 

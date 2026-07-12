@@ -6,12 +6,14 @@
   "bin": {
     "prisma-mcp": "./src/index.js"
   },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "nodemailer": "^6.9.0"
+  },
   "scripts": {
     "start": "node src/index.js",
-    "dev": "node --watch src/index.js"
-  },
-  "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.0.0"
+    "dev":   "node --watch src/index.js",
+    "sync":  "node scripts/sync-and-push.js"
   },
   "engines": {
     "node": ">=18.0.0"
