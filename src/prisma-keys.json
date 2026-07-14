@@ -698,7 +698,7 @@
   "type=solid, size=md, color=skeleton": "df1c3a9f7a1ca9acd4fffed65acaa99494de067c",
   "type=subtle, size=md, color=orange": "ea9d5715d0d2f403458f1312f5ed851c1143954b",
   "state=default, type=icon action_no title": "f7b29b38303bd65d769ececdac723fd018539dc0",
-  "numeric-indicator": "029dcb874405b8470643abc47d4bc61cadeb44b5",
+  "wlnumericindicator": "029dcb874405b8470643abc47d4bc61cadeb44b5",
   "icon_mediaplayer": "0441027dcd7e43ddfa523dd367725ea64d55a10b",
   "type=circle": "2823630372d0ce3a69d3b3424ab5b4d8c9663a29",
   "state=content_error": "37c5c5403f6c92f8c7eb1909c1ecf64d67c28172",
