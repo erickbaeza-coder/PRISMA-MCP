@@ -7,13 +7,13 @@
     "prisma-mcp": "./src/index.js"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.0.0",
-    "nodemailer": "^9.0.3"
+    "@modelcontextprotocol/sdk": "^1.0.0"
   },
   "scripts": {
     "start": "node src/index.js",
     "dev": "node --watch src/index.js",
-    "sync": "node scripts/sync-and-push.js"
+    "sync": "node scripts/sync-and-push.js",
+    "dashboard": "node scripts/dashboard.js"
   },
   "engines": {
     "node": ">=18.0.0"
