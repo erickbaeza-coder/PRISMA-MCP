@@ -228,6 +228,26 @@ function askUserConfirmation() {
 
 let wasOnline = false;
 
+async function maybeAutoSync(cfg) {
+  if (!cfg.autoSync || isSyncing) return;
+
+  const state = loadState();
+  const hoursSince = state.lastSyncDate
+    ? (Date.now() - new Date(state.lastSyncDate).getTime()) / 3600000
+    : Infinity;
+  if (hoursSince < cfg.minHoursBetweenSync) return;
+
+  if (cfg.requireConfirmation !== false) {
+    broadcast({ type: 'sync_confirm_pending' });
+    const approved = await askUserConfirmation();
+    if (!approved) {
+      broadcast({ type: 'sync_confirm_denied' });
+      return;
+    }
+  }
+  runSync(false);
+}
+
 async function checkLoop() {
   const cfg    = loadConfig();
   const online = await hasInternet();
@@ -235,19 +255,6 @@ async function checkLoop() {
   if (online && !wasOnline) {
     // Recién se conectó a internet
     broadcast({ type: 'online' });
-    if (cfg.autoSync) {
-      setTimeout(async () => {
-        if (cfg.requireConfirmation !== false) {
-          broadcast({ type: 'sync_confirm_pending' });
-          const approved = await askUserConfirmation();
-          if (!approved) {
-            broadcast({ type: 'sync_confirm_denied' });
-            return;
-          }
-        }
-        runSync(false);
-      }, 2000);
-    }
   }
 
   if (!online && wasOnline) {
@@ -256,6 +263,11 @@ async function checkLoop() {
 
   wasOnline = online;
   broadcast({ type: 'heartbeat', online, isSyncing, ts: new Date().toISOString() });
+
+  if (online) {
+    // No await: no bloquear el heartbeat/loop mientras espera confirmación del usuario.
+    maybeAutoSync(cfg);
+  }
 
   const intervalMs = (loadConfig().checkIntervalMin || 5) * 60 * 1000;
   setTimeout(checkLoop, intervalMs);
