@@ -449,7 +449,6 @@
   "size=xs, type=no image": "e74fba51e89d7d5a0830d24132a819108e6a1d44",
   "size=3xs square, type=no image": "f3ca92937bc2fe73ac8beb5233a5da88b9672a73",
   "size=md, variant=surface": "d2ea9fd8ac78c8ac44711a4747bb272a769d5045",
-  "wlconfirmationcard": "ac58d74a31ec51071421fbd0f053ad198764af76",
   "size=carrusel_md": "c2367234f7c6e2e7ee42fca7f99af2db1b596e58",
   "state=default, size=md": "4a58a60abeb0d1db7bf8b383bf1aed55e0cdc66b",
   "state=default, size=sm": "54b9ed8864b817c62994c67e7b85e7264ca78c26",
@@ -1019,5 +1018,6 @@
   "type=gbarbosa, size=2xl": "e6d54293bc4d06819ad86c9f5b74ab5ceb30a509",
   "type=gbarbosa, size=md": "e971c329e2139369879184b7733b5cae38e52ea1",
   "type=metro, size=lg": "ed1ac7a6e7a3e796e85aa7cbfa817da08e85fee5",
-  "state=2": "99383b885b4c6a7808302808b873006bfdac4880"
+  "state=2": "99383b885b4c6a7808302808b873006bfdac4880",
+  "wlconfirmationcard": "ac58d74a31ec51071421fbd0f053ad198764af76"
 }
