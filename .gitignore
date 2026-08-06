@@ -4,3 +4,8 @@ node_modules/
 catalog.json
 *.log
 .DS_Store
+
+# Prisma Sync (contiene el token de Figma en texto plano y estado local)
+scripts/sync.config.json
+scripts/.sync-log.json
+scripts/.sync-state.json

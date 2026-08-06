@@ -10,7 +10,7 @@
   <key>ProgramArguments</key>
   <array>
     <string>/usr/local/bin/node</string>
-    <string>/Users/ebaezaroa/Desktop/Cencosud 2026/Discovery Agentico/Prisma MCP/scripts/dashboard.js</string>
+    <string>/Users/cesarcastillo/Documents/Proyectos/Prisma-MCP/scripts/dashboard.js</string>
   </array>
 
   <!-- Se inicia automáticamente al abrir sesión en macOS -->
@@ -27,15 +27,15 @@
     <key>PATH</key>
     <string>/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin</string>
     <key>HOME</key>
-    <string>/Users/ebaezaroa</string>
+    <string>/Users/cesarcastillo</string>
   </dict>
 
   <!-- Logs (opcional, para debug) -->
   <key>StandardOutPath</key>
-  <string>/Users/ebaezaroa/Library/Logs/prisma-dashboard.log</string>
+  <string>/Users/cesarcastillo/Library/Logs/prisma-dashboard.log</string>
 
   <key>StandardErrorPath</key>
-  <string>/Users/ebaezaroa/Library/Logs/prisma-dashboard-error.log</string>
+  <string>/Users/cesarcastillo/Library/Logs/prisma-dashboard-error.log</string>
 
 </dict>
 </plist>
