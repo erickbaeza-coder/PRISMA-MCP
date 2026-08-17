@@ -164,14 +164,27 @@ async function runSync(manual = false) {
     // 3. Calcular diff
     const oldKeys = existsSync(KEYS_FILE) ? JSON.parse(readFileSync(KEYS_FILE, 'utf8')) : {};
     const newKeys = {};
+    const compByNormName = {};
     for (const c of components) {
-      if (c.key && c.name) newKeys[normStr(c.name)] = c.key;
+      if (c.key && c.name) {
+        newKeys[normStr(c.name)] = c.key;
+        compByNormName[normStr(c.name)] = c;
+      }
     }
 
     const added   = Object.keys(newKeys).filter(k => !oldKeys[k]);
     const removed = Object.keys(oldKeys).filter(k => !newKeys[k]);
     const changed = Object.keys(newKeys).filter(k => oldKeys[k] && oldKeys[k] !== newKeys[k]);
     const total   = added.length + changed.length + removed.length;
+
+    // Detalle por item: nombre del componente/variante + autor del último cambio en Figma
+    const toDetail = k => {
+      const c = compByNormName[k];
+      return { name: c?.name || k, author: c?.user?.handle || null };
+    };
+    const addedItems   = added.map(toDetail);
+    const changedItems = changed.map(toDetail);
+    const removedItems = removed.map(k => ({ name: k, author: null }));
 
     // 4. Guardar keys + estado
     writeFileSync(KEYS_FILE, JSON.stringify(newKeys, null, 2));
@@ -192,7 +205,12 @@ async function runSync(manual = false) {
     }
 
     // 6. Log + notificación
-    const entry = { manual, total, added: added.length, changed: changed.length, removed: removed.length, pushed };
+    const entry = {
+      manual, total,
+      added: added.length, changed: changed.length, removed: removed.length,
+      addedItems, changedItems, removedItems,
+      pushed
+    };
     addLog(entry);
 
     if (total > 0) {
@@ -296,6 +314,10 @@ const HTML = `<!DOCTYPE html>
 
   .topbar { background: white; border-bottom: 1px solid var(--neutral-200); padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 10; }
   .topbar-left { display: flex; align-items: center; gap: 12px; }
+
+  .sync-progress { position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; overflow: hidden; opacity: 0; transition: opacity .2s; pointer-events: none; }
+  .sync-progress.active { opacity: 1; }
+  .sync-progress-bar { position: absolute; top: 0; left: 0; height: 100%; width: 0%; background: var(--brand); transition: width .25s ease; }
   .logo { font-weight: 800; font-size: 16px; color: var(--neutral-900); letter-spacing: -.3px; }
   .logo span { color: var(--brand); }
   .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--neutral-200); transition: background .3s; }
@@ -307,6 +329,15 @@ const HTML = `<!DOCTYPE html>
 
   .card { background: white; border: 1px solid var(--neutral-200); border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow); }
   .card-title { font-size: 13px; font-weight: 700; color: var(--neutral-900); margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+  .card-title svg { width: 15px; height: 15px; flex-shrink: 0; }
+  .card-title.collapsible { cursor: pointer; user-select: none; justify-content: space-between; margin-bottom: 0; }
+  .card-title.collapsible .title-left { display: flex; align-items: center; gap: 8px; }
+  .card-title.collapsible.open { margin-bottom: 16px; }
+  .card-title .chevron { color: var(--neutral-500); transition: transform .2s; display: flex; }
+  .card-title .chevron svg { width: 14px; height: 14px; }
+  .card-title.collapsible.open .chevron { transform: rotate(180deg); }
+  .config-body { display: none; }
+  .config-body.open { display: block; }
 
   .status-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
   .stat { background: var(--neutral-50); border: 1px solid var(--neutral-200); border-radius: 8px; padding: 14px; }
@@ -317,8 +348,6 @@ const HTML = `<!DOCTYPE html>
   .sync-btn { display: flex; align-items: center; justify-content: center; gap: 8px; background: var(--brand); color: white; border: none; border-radius: 8px; padding: 10px 20px; font-size: 13px; font-weight: 600; cursor: pointer; transition: opacity .15s; width: 100%; margin-top: 16px; }
   .sync-btn:hover { opacity: .9; }
   .sync-btn:disabled { opacity: .5; cursor: not-allowed; }
-  .sync-btn.spinning .icon { animation: spin 1s linear infinite; }
-  @keyframes spin { to { transform: rotate(360deg); } }
 
   .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--neutral-100); }
   .toggle-row:last-child { border: none; }
@@ -359,9 +388,6 @@ const HTML = `<!DOCTYPE html>
   .toast.show { transform: translateY(0); opacity: 1; }
   .toast.success { background: var(--success); }
   .toast.error { background: var(--danger); }
-
-  .pulse { animation: pulse 2s ease-in-out infinite; }
-  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
 </style>
 </head>
 <body>
@@ -375,13 +401,14 @@ const HTML = `<!DOCTYPE html>
     </div>
   </div>
   <div style="font-size:11px;color:var(--neutral-500)">localhost:7842 · WL UX Team</div>
+  <div class="sync-progress" id="syncProgress"><div class="sync-progress-bar"></div></div>
 </div>
 
 <div class="container">
 
   <!-- Status -->
   <div class="card">
-    <div class="card-title">📊 Estado del sistema</div>
+    <div class="card-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg> Estado del sistema</div>
     <div class="status-grid">
       <div class="stat">
         <div class="stat-label">Último sync</div>
@@ -400,13 +427,13 @@ const HTML = `<!DOCTYPE html>
       </div>
     </div>
     <button class="sync-btn" id="syncBtn" onclick="triggerSync()">
-      <span class="icon">⟳</span> Sincronizar ahora
+      Sincronizar ahora
     </button>
   </div>
 
   <!-- Log -->
   <div class="card">
-    <div class="card-title">📋 Historial de syncs</div>
+    <div class="card-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg> Historial de syncs</div>
     <div class="log-list" id="logList">
       <div style="color:var(--neutral-500);font-size:13px;text-align:center;padding:20px">Cargando historial...</div>
     </div>
@@ -414,8 +441,15 @@ const HTML = `<!DOCTYPE html>
 
   <!-- Config -->
   <div class="card">
-    <div class="card-title">⚙️ Configuración</div>
+    <div class="card-title collapsible" id="configTitle" onclick="toggleConfig()">
+      <span class="title-left">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+        <span>Configuración</span>
+      </span>
+      <span class="chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span>
+    </div>
 
+    <div class="config-body" id="configBody">
     <div class="toggle-row">
       <div>
         <div class="toggle-label">Auto-sync al conectar internet</div>
@@ -463,6 +497,7 @@ const HTML = `<!DOCTYPE html>
         <input type="number" id="checkInterval" min="1" max="60" value="5" style="width:100px">
       </div>
       <button class="save-btn" onclick="saveConfig()">Guardar configuración</button>
+    </div>
     </div>
   </div>
 
@@ -530,6 +565,7 @@ const HTML = `<!DOCTYPE html>
         loadLogs();
         loadStatus();
         if (data.changed) showNotification(data);
+        else showToast('✓ Sincronizado — sin cambios nuevos', 'success');
       }
       if (data.type === 'sync_error') {
         setLoading(false);
@@ -547,13 +583,38 @@ const HTML = `<!DOCTYPE html>
     label.textContent = online ? 'Conectado a internet' : 'Sin conexión';
   }
 
+  let progressTimer = null;
+
+  function startProgress() {
+    const bar  = document.getElementById('syncProgress');
+    const fill = bar.querySelector('.sync-progress-bar');
+    clearInterval(progressTimer);
+    bar.classList.add('active');
+    let pct = 0;
+    fill.style.width = '0%';
+    progressTimer = setInterval(() => {
+      pct += (90 - pct) * 0.12 + 0.5;
+      if (pct > 90) pct = 90;
+      fill.style.width = pct + '%';
+    }, 200);
+  }
+
+  function finishProgress() {
+    clearInterval(progressTimer);
+    const bar  = document.getElementById('syncProgress');
+    const fill = bar.querySelector('.sync-progress-bar');
+    fill.style.width = '100%';
+    setTimeout(() => {
+      bar.classList.remove('active');
+      fill.style.width = '0%';
+    }, 400);
+  }
+
   function setLoading(loading) {
     const btn = document.getElementById('syncBtn');
     btn.disabled = loading;
-    btn.className = 'sync-btn' + (loading ? ' spinning' : '');
-    btn.innerHTML = loading
-      ? '<span class="icon pulse">⟳</span> Sincronizando...'
-      : '<span class="icon">⟳</span> Sincronizar ahora';
+    btn.textContent = loading ? 'Sincronizando...' : 'Sincronizar ahora';
+    if (loading) startProgress(); else finishProgress();
   }
 
   function renderLogs() {
@@ -562,10 +623,22 @@ const HTML = `<!DOCTYPE html>
       el.innerHTML = '<div style="color:var(--neutral-500);font-size:13px;text-align:center;padding:20px">Sin syncs todavía</div>';
       return;
     }
+    const escapeHtml = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+    const renderItems = (items, badgeClass, label) => {
+      if (!items || !items.length) return '';
+      const rows = items.map(it => {
+        const author = it.author ? \` <span style="color:var(--neutral-500)">· \${escapeHtml(it.author)}</span>\` : '';
+        return \`<li><span class="badge \${badgeClass}">\${label}</span> \${escapeHtml(it.name)}\${author}</li>\`;
+      }).join('');
+      return \`<ul style="list-style:none;margin-top:6px;display:flex;flex-direction:column;gap:4px">\${rows}</ul>\`;
+    };
+
     el.innerHTML = logs.map(l => {
       const ts   = new Date(l.ts).toLocaleString('es-CL');
       const cls  = l.error ? 'error' : (l.total > 0 ? 'ok' : 'no-change');
       let msg = '';
+      let details = '';
       if (l.error) msg = '❌ ' + l.error;
       else if (l.total > 0) {
         msg = \`✅ \${l.total} cambios detectados\`;
@@ -573,10 +646,13 @@ const HTML = `<!DOCTYPE html>
         if (l.changed) msg += \` <span class="badge badge-changed">~\${l.changed} keys</span>\`;
         if (l.removed) msg += \` <span class="badge badge-removed">-\${l.removed}</span>\`;
         if (l.pushed) msg += ' · pusheado a GitHub';
+        details = renderItems(l.addedItems, 'badge-new', 'nuevo')
+                + renderItems(l.changedItems, 'badge-changed', 'cambio')
+                + renderItems(l.removedItems, 'badge-removed', 'removido');
       } else {
         msg = l.manual ? '✓ Sin cambios (sync manual)' : '✓ Sin cambios';
       }
-      return \`<div class="log-item \${cls}"><div class="log-ts">\${ts}\${l.manual ? ' · manual' : ' · auto'}</div><div class="log-msg">\${msg}</div></div>\`;
+      return \`<div class="log-item \${cls}"><div class="log-ts">\${ts}\${l.manual ? ' · manual' : ' · auto'}</div><div class="log-msg">\${msg}</div>\${details}</div>\`;
     }).join('');
   }
 
@@ -630,6 +706,11 @@ const HTML = `<!DOCTYPE html>
 
   function requestNotifPermission() {
     if (Notification.permission !== 'granted') Notification.requestPermission();
+  }
+
+  function toggleConfig() {
+    document.getElementById('configTitle').classList.toggle('open');
+    document.getElementById('configBody').classList.toggle('open');
   }
 
   init();
